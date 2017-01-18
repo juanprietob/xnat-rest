@@ -1,0 +1,33 @@
+{
+  "name": "xnat-rest",
+  "version": "1.0.0",
+  "description": "Implement the operations to communicate with xnat via REST api",
+  "main": "index.js",
+  "scripts": {
+    "test": "lab -m 24000 -v test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/juanprietob/xnat-rest.git"
+  },
+  "keywords": [
+    "XNAT",
+    "REST",
+    "node"
+  ],
+  "author": "juanprietob@gmail.com",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/juanprietob/xnat-rest/issues"
+  },
+  "homepage": "https://github.com/juanprietob/xnat-rest#readme",
+  "dependencies": {
+    "bluebird": "^3.4.6",
+    "find": "^0.2.7",
+    "request": "^2.76.0",
+    "underscore": "^1.8.3"
+  },
+  "devDependencies": {
+    "lab": "^11.1.0"
+  }
+}
