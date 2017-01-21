@@ -19,6 +19,7 @@ if(!argv["p"]){
 var projectid = argv["p"];
 var directory = argv["d"];
 
+console.log("Searching DICOM files...");
 var files = find.fileSync(/\.dcm$/, directory);
 
 var user = {
@@ -27,12 +28,17 @@ var user = {
 }
 
 xnat.setXnatUrl('http://152.19.32.248:8080');
-
+console.log("Login to instance...");
 xnat.login(user)
 .then(function(){
 	return Promise.map(files, function(file){
 		return xnat.dicomDump(file)
+		.catch(function(err){
+			console.error(err);
+			console.error("No problem trying to continue...");
+		})
 		.then(function(dcmData){
+			console.log("Importing file", file);
 			var patientid = dcmData.dataset["00100020"].value;
 			var sessionid = dcmData.dataset["00080020"].value;
 			return xnat.uploadImage(projectid, patientid, sessionid, file);

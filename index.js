@@ -46,15 +46,24 @@ xnat.login = function(user){
 
 xnat.dicomDump = function(filename){
 	return new Promise(function(resolve, reject){
-		dicomjs.parseFile(filename, function (err, dcmData) {
-		    
-		 
-		    if (!err) {
-		        resolve(dcmData);
-		    } else {
-		        console.log(err);
-		    }
-		});
+		try{
+
+			dicomjs.parseFile(filename, function (err, dcmData) {
+			    if (!err) {
+			        resolve(dcmData);
+			    } else {
+			        reject({
+			        	err: err,
+			        	filename: filename
+			        });
+			    }
+			});
+		}catch(err){
+			reject({
+	        	err: err,
+	        	filename: filename
+	        });
+		}
 	});	
 }
 
@@ -263,7 +272,7 @@ xnat.triggerPipelines = function(projectid, subjectid, experimentid){
 			jar: xnat.jar
 		}
 
-		console.log(options)
+		console.log(options);
 
 		request(options, function(err, res, body){
 			if(err){
