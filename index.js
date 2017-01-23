@@ -371,4 +371,8 @@ xnat.writeConfFile = function(conf){
     fs.writeFileSync(confpath, JSON.stringify(conf));
 }
 
+xnat.upload = function(){
+	require(path.join(__dirname, 'upload'))(xnat);
+}
+
 _.extend(this, xnat);
