@@ -1,10 +1,14 @@
-var request = require('request');
-var Promise = require('bluebird');
-var _ = require('underscore');
-var path = require('path');
-var fs = require('fs');
-var dicomjs = require('dicomjs');
-var qs = require('querystring');
+const request = require('request');
+const Promise = require('bluebird');
+const _ = require('underscore');
+const path = require('path');
+const fs = require('fs');
+const dicomjs = require('dicomjs');
+const qs = require('querystring');
+const find = require('find');
+const os = require('os');
+const prompt = require('prompt');
+
 var xnat = {};
 
 xnat.jar = request.jar();
@@ -36,7 +40,7 @@ xnat.login = function(user){
 
 					resolve(body);
 				}else{
-					reject(res);
+					reject("Login failed. Please set server information again.");
 				}
 				
 			}
@@ -294,26 +298,77 @@ xnat.prearchive = function(){
 	})
 }
 
-xnat.logout = function(user){
-	return new Promise(function(resolve, reject){
-		var options = {
-			url: xnat.getXnatUrl() + "/data/JSESSION",
-			method: "DELETE",
-			jar: xnat.jar
-		}
-
-		request(options, function(err, res, body){
-			if(err){				
-				reject(err);
-			}else{				
-				if(res.statusCode === 200){
-					resolve(true);
-				}else{
-					reject(body);
-				}
+xnat.logout = function(){
+	if(xnat.jar){
+		return new Promise(function(resolve, reject){
+			var options = {
+				url: xnat.getXnatUrl() + "/data/JSESSION",
+				method: "DELETE",
+				jar: xnat.jar
 			}
+
+			request(options, function(err, res, body){
+				if(err){				
+					reject(err);
+				}else{				
+					if(res.statusCode === 200){
+						resolve(true);
+					}else{
+						reject(body);
+					}
+				}
+			});
 		});
-	});
+	}else{
+		return Promise.resolve(true);
+	}
+	
+}
+
+xnat.findFiles = function(directory){
+	return new Promise(function(resolve, reject){
+		console.log("Searching DICOM files with .dcm extension");
+		var files = find.file(/\.dcm$/, directory, function(files){
+			resolve(files)
+		})
+		.error(function(err){
+			reject(err);
+		});
+	})
+}
+
+xnat.getUsernamePassword = function(){
+    return new Promise(function(resolve, reject){
+        var schema = {
+            properties: {
+                user: {
+                    message: 'Username',
+                    required: true
+                },
+                password: {                    
+                    hidden: true,
+                    required: true
+                }
+            }
+        };
+        prompt.start();
+        prompt.get(schema, function (err, result) {
+        	if(err){
+        		reject(err);
+        	}else{
+        		resolve(result);
+        	}
+        });
+    });
+}
+
+xnat.writeConfFile = function(conf){
+    var confpath = path.join(os.homedir(), '.xnat.json');
+    console.log("Writting configuration file with to:", confpath);
+    console.log("You won't need to type the server information next time.");
+    console.log("If you have authentication problems in the future or change password, please type the server url again. You will be prompted to write your username and password again.");
+
+    fs.writeFileSync(confpath, JSON.stringify(conf));
 }
 
 _.extend(this, xnat);
