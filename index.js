@@ -11,6 +11,20 @@ const prompt = require('prompt');
 
 var xnat = {};
 
+xnat.useDCMExtension = true;
+
+xnat.useDCMExtensionOn = function(){
+	xnat.useDCMExtension = true;
+}
+
+xnat.useDCMExtensionOff = function(){
+	xnat.useDCMExtension = false;
+}
+
+xnat.setUseDCMExtension = function(usedcm){
+	xnat.useDCMExtension = usedcm;
+}
+
 xnat.jar = request.jar();
 
 xnat.setXnatUrl = function(url){
@@ -327,17 +341,28 @@ xnat.logout = function(){
 
 xnat.findFiles = function(directory){
 	return new Promise(function(resolve, reject){
-		console.log("Searching DICOM files with .dcm extension");
-		var files = find.file(/\.dcm$/, directory, function(files){
-			resolve(files)
-		})
-		.error(function(err){
-			reject(err);
-		});
+		if(xnat.useDCMExtension){
+			console.log("Searching DICOM files with .dcm extension");
+			var files = find.file(/\.dcm$/, directory, function(files){
+				resolve(files)
+			})
+			.error(function(err){
+				reject(err);
+			});
+		}else{
+			console.log("Searching DICOM files");
+			var files = find.file(directory, function(files){
+				resolve(files)
+			})
+			.error(function(err){
+				reject(err);
+			});
+		}
+		
 	})
 }
 
-xnat.getUsernamePassword = function(){
+xnat.promptUsernamePassword = function(){
     return new Promise(function(resolve, reject){
         var schema = {
             properties: {
@@ -362,6 +387,27 @@ xnat.getUsernamePassword = function(){
     });
 }
 
+xnat.promptXnatUrl = function(){
+	return new Promise(function(resolve, reject){
+        var schema = {
+            properties: {
+                server: {
+                    message: 'Xnat url',
+                    required: true
+                }
+            }
+        };
+        prompt.start();
+        prompt.get(schema, function (err, result) {
+        	if(err){
+        		reject(err);
+        	}else{
+        		resolve(result);
+        	}
+        });
+    });
+}
+
 xnat.writeConfFile = function(conf){
     var confpath = path.join(os.homedir(), '.xnat.json');
     console.log("Writting configuration file with to:", confpath);
@@ -371,8 +417,107 @@ xnat.writeConfFile = function(conf){
     fs.writeFileSync(confpath, JSON.stringify(conf));
 }
 
+xnat.setScanQualityLabels = function(projectid, labelfilename){
+	return new Promise(function(resolve, reject){
+
+		var params = {
+			inbody: true
+		}
+		var options = {
+			url: xnat.getXnatUrl() + "/REST/projects/" + projectid + "/config/scan-quality/labels?" + qs.stringify(params),
+			method: "PUT",
+			jar: xnat.jar,
+			data: fs.readFileSync(labelfilename)
+		}
+
+		request(options, function(err, res, body){
+			if(err){
+				reject(err);
+			}else{
+				if(res.statusCode === 200){					
+					resolve(body);
+				}else{
+					reject(body);
+				}
+			}
+		});
+	});
+}
+
+
 xnat.upload = function(){
 	require(path.join(__dirname, 'upload'))(xnat);
+}
+
+const getConfigFile = function () {
+    return new Promise(function(resolve, reject){
+        try {
+            // Try to load the user's personal configuration file
+            var conf = path.join(os.homedir(), '.xnat.json');
+            resolve(require(conf));
+        } catch (e) {            
+            reject(e);
+        }
+    });
+};
+
+xnat.setXnatUrlAndLogin = function(server, promptlogin){
+
+	var loginprom = undefined;
+	if(server){
+
+	    var conf = {};
+	    conf.server = server;
+
+	    loginprom = xnat.promptUsernamePassword()
+	    .then(function(user){
+	    	conf.user = user;
+	        xnat.writeConfFile(conf);
+	        return conf;
+	    });
+	}else{
+	    loginprom = getConfigFile()
+	    .catch(function(err){
+	    	console.error(err);
+	    	return xnat.promptXnatUrl()
+	    	.then(function(conf){
+	    		if(!promptlogin){
+	    			return xnat.promptUsernamePassword()
+	    			.then(function(user){
+				    	conf.user = user;
+				        xnat.writeConfFile(conf);
+				        return conf;
+				    });
+	    		}else{
+	    			return conf;
+	    		}
+	    	});
+	    })
+	    .then(function(conf){
+	    	if(promptlogin){
+	    		return xnat.promptUsernamePassword()
+			    .then(function(user){
+			    	conf.user = user;
+			        xnat.writeConfFile(conf);
+			        return conf;
+			    });
+	    	}else{
+	    		return conf;
+	    	}
+	    })
+	    .catch(function(e){
+	        throw "Config file not found. Use -h or --help to learn how to use this program";
+	    });
+	}
+
+	return loginprom
+	.then(function(conf){
+		console.log("Setting server url to ", conf.server);
+		xnat.setXnatUrl(conf.server);
+		console.log("Login to xnat.", conf.server);
+		return xnat.login(conf.user);
+	});
+	
 }
 
 _.extend(this, xnat);

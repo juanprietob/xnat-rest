@@ -19,6 +19,7 @@ module.exports = function(xnat){
 		console.error("--sessid <session id>, If session id is specified, the session id won't be extracted from the DICOM file.");
 		console.error("--server <server url>, XNAT server url");
 		console.error("--prompt , If set, forces prompt for login information again. It will use the previous server URL saved in the configuration file");
+		console.error("--noext , Find all files regardless of extension and test if it is a DICOM file. The DICOM files are imported to XNAT.");
 	}
 
 	if(!argv["d"] || !argv["p"] || argv["h"] || argv["help"]){
@@ -31,6 +32,7 @@ module.exports = function(xnat){
 	var patientid = argv["pid"];
 	var sessionid = argv["sessid"];
 	var promptlogin = argv["prompt"];
+	var noext = argv["noext"];
 
 
 	const getConfigFile = function () {
@@ -45,25 +47,28 @@ module.exports = function(xnat){
 	    });
 	};
 
+	if(noext){
+		xnat.useDCMExtensionOff();
+	}
+	
+
 	var loginprom = undefined;
 	if(argv["server"]){
 
 	    var conf = {};
 	    conf.server = argv["server"];
 
-	    loginprom = xnat.getUsernamePassword()
+	    loginprom = xnat.promptUsernamePassword()
 	    .then(function(user){
 	    	conf.user = user;
 	        xnat.writeConfFile(conf);
 	        return conf;
 	    });
 	}else{
-
-		var 
 	    loginprom = getConfigFile()
 	    .then(function(conf){
 	    	if(promptlogin){
-	    		return xnat.getUsernamePassword()
+	    		return xnat.promptUsernamePassword()
 			    .then(function(user){
 			    	conf.user = user;
 			        xnat.writeConfFile(conf);

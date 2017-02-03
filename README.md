@@ -6,6 +6,16 @@ Use xnat-rest API with this package.
 	npm install xnat-rest
 ----
 
+To test this package please download some DICOM files to your directory and modify the test.js script with the folder name.
+This package was tested with data available at [archive.org](https://archive.org/download/9889023420030505CT/98890234_20030505_CT.tar.bz2)
+
+Run all tests with
+
+----
+	npm test
+----
+
+
 ## Usage: 
 
 To upload files using this library create a file (index.js) and add:
