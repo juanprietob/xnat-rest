@@ -250,6 +250,7 @@ xnat.uploadImage = function(projectid, subjectid, sessionid, filename){
 
 		var params = {
 			inbody: true,
+			overwrite: "delete",
 			dest: "/archive/projects/" + projectid,
 			"import-handler" : "gradual-DICOM",
 			SUBJECT_ID: subjectid,

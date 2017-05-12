@@ -4,29 +4,73 @@ const lab = exports.lab = Lab.script();
 const fs = require('fs');
 const Promise = require('bluebird');
 const path = require('path');
+const Joi = require('joi');
 
-var user = {
-    user: "jprieto",
-    password: "2006BuitragoK-9!"
-}
+xnat.setXnatUrl('http://localhost:8080');
 
-xnat.setXnatUrl('http://152.19.32.248:8080');
+xnat.useDCMExtensionOff();
+
+var dicomdirectory = "./temp";
+var projectid = "TestUMN1"
+
+var user = {};
 
 lab.experiment("Test xnat REST", function(){
+
+    lab.test('returns true when user information is acquired', function(){
+        return xnat.getUsernamePassword()
+        .then(function(us){
+            user = us;
+        })
+    })
+
 	lab.test('returns true when user is logged in.', function(){
 
         return xnat.login(user)
         .then(function(res){
-
+            console.log(res);
         });
         
 	});
 
+    lab.test('returns true when files are found in directory', function(){
+        return xnat.findFiles(dicomdirectory)
+        .then(function(files){
+
+            Joi.assert(files, Joi.array.min(0))
+            
+        })
+    });
+
 	lab.test('returns true when dicomdump is executed.', function(){
 
-        return xnat.dicomDump("/NIRAL/work/jprieto/source/xnat-rest/temp/116845_06_DWI/MR-SE009-DWI_dir79_AP/MR-ST001-SE009-0001.dcm")
-        .then(function(res){        	
-        	console.log(res.dataset['00100020'].value);
+        return Promise.map(files, function(file){
+
+            return xnat.dicomDump(file)
+            .then(function(dcmData){
+                console.log("Importing file", file);
+                var pid;
+
+                if(patientid){
+                    pid = patientid;
+                }else{
+                    pid = dcmData.dataset["00100020"].value;
+                }
+
+                var sessid;
+                if(sessionid){
+                    sessid = sessionid;
+                }else{
+                    sessid = dcmData.dataset["00080020"].value;
+                }
+                return xnat.uploadImage(projectid, pid, sessid, file);
+            })
+            .catch(function(err){
+                            console.error(err);
+                            console.error("No problem trying to continue...");
+                    });
+        }, {
+            concurrency: 1
         });
         
 	});
@@ -40,7 +84,7 @@ lab.experiment("Test xnat REST", function(){
 	});
 
 	lab.test('returns true when get project subjects.', function(){
-        return xnat.getSubjects("TestUMN1")
+        return xnat.getSubjects(projectid)
         .then(function(res){
             console.log(JSON.stringify(res, null, 2));
         });
@@ -57,29 +101,12 @@ lab.experiment("Test xnat REST", function(){
 	});	
 
 	lab.test('returns true when get subject experiments.', function(){
-        return xnat.getSubjectExperiments("TestUMN1", "XNAT_S00001")
+        return xnat.getSubjectExperiments(projectid, "XNAT_S00001")
         .then(function(res){
             console.log(JSON.stringify(res, null, 2));
         });
         
 	});
-
-	lab.test('returns true when image is uploaded.', function(){
-
-		var dir = "/NIRAL/work/jprieto/source/xnat-rest/temp/116845_06_DWI/MR-SE009-DWI_dir79_AP/";
-		var files = fs.readdirSync(dir);
-
-		return Promise.map(files, function(file){
-			return xnat.uploadImage("TestUMN1", path.join(dir, file))
-	        .then(function(res){
-	            console.log(res);
-	        });
-		}, {
-			concurrency: 1
-		});
-        
-	});
-
 
 	lab.test('returns true when user is logged out.', function(){
 
