@@ -105,13 +105,15 @@ module.exports = function(xnat){
 					pid = patientid;
 				}else{
 					pid = dcmData.dataset["00100020"].value;
+					pid = pid.replace(/[ .:|&;$%@"<>()+,]/g, "_");
 				}
 
 				var sessid;
 				if(sessionid){
 					sessid = sessionid;
 				}else{
-					sessid = dcmData.dataset["00080020"].value;
+					//Create a unique session id. With the old one it might conflict with existing sessions. 
+					sessid = pid + "-" + dcmData.dataset["00080020"].value;
 				}
 				return xnat.uploadImage(projectid, pid, sessid, file);
 			})

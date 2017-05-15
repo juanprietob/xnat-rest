@@ -224,6 +224,39 @@ xnat.getSubjectExperiments = function(projectid, subjectid){
 	})	
 }
 
+xnat.getSubjectSession = function(projectid, subjectid, sessionid){
+	return new Promise(function(resolve, reject){
+
+		var params = {
+			format: "json"
+		}
+
+		var url;
+		if(sessionid){
+			url = "/data/archive/projects/" + projectid + "/subjects/" + subjectid + "/experiments/" + sessionid + "?" + qs.stringify(params);
+		}else{
+			url = "/data/archive/projects/" + projectid + "/subjects/" + subjectid + "/experiments?" + qs.stringify(params);
+		}
+
+		var options = {
+			url: xnat.getXnatUrl() + url,
+			jar: xnat.jar
+		}
+
+		request(options, function(err, res, body){
+			if(err){				
+				reject(err);
+			}else{				
+				if(res.statusCode === 200){
+					resolve(JSON.parse(body));
+				}else{
+					reject(body);
+				}
+			}
+		});
+	})	
+}
+
 xnat.createSubject = function(projectid, subjectid) {
 	return new Promise(function(resolve, reject){
 		var options = {
@@ -245,7 +278,7 @@ xnat.createSubject = function(projectid, subjectid) {
 	});
 }
 
-xnat.uploadImage = function(projectid, subjectid, sessionid, filename){
+xnat.uploadImage = function(projectid, subjectid, experimentid, filename){
 	return new Promise(function(resolve, reject){		
 
 		var params = {
@@ -254,7 +287,7 @@ xnat.uploadImage = function(projectid, subjectid, sessionid, filename){
 			dest: "/archive/projects/" + projectid,
 			"import-handler" : "gradual-DICOM",
 			SUBJECT_ID: subjectid,
-			EXPT_LABEL: sessionid
+			EXPT_LABEL: experimentid
 		}
 
 		var options = {
@@ -276,6 +309,99 @@ xnat.uploadImage = function(projectid, subjectid, sessionid, filename){
 			}
 		});
 	})	
+}
+
+xnat.uploadConvertedImage = function(projectid, subjectid, experimentid, scanid, filename){
+	return new Promise(function(resolve, reject){
+
+		var params = {
+			inbody: true
+		}
+
+		var options = {
+			url: xnat.getXnatUrl() + "/data/archive/projects/" + projectid + "/subjects/" + subjectid + "/experiments/" + experimentid + "/scans/" + scanid + "/files/" + path.basename(filename) + "?" + qs.stringify(params),
+			method: "PUT",
+			jar: xnat.jar,
+			body: fs.readFileSync(filename)
+		}
+
+		request(options, function(err, res, body){
+			if(err){
+				reject(err);
+			}else{				
+				if(res.statusCode === 200){
+					console.log("File imported");
+					resolve(body);
+				}else{
+					reject(body);
+				}
+			}
+		});
+	})	
+}
+
+xnat.getScanFiles = function(projectid, subjectid, experimentid, scanid){
+	return new Promise(function(resolve, reject){
+
+		var params = {
+			format: "json"
+		}
+
+		var options = {
+			url: xnat.getXnatUrl() + "/data/archive/projects/" + projectid + "/subjects/" + subjectid + "/experiments/" + experimentid + "/scans/" + scanid + "/files?" + qs.stringify(params),
+			method: "GET",
+			jar: xnat.jar
+		}
+
+		request(options, function(err, res, body){
+			if(err){
+				reject(err);
+			}else{				
+				try{
+					if(res.statusCode === 200){
+						var images = JSON.parse(body);
+						resolve(images.ResultSet.Result);
+					}else{
+						reject(body);
+					}
+				}catch(e){
+					console.error("xnat.getScanFiles", e);
+					reject(e);
+				}
+				
+			}
+		});
+	});	
+}
+
+xnat.deleteFile = function(uri){
+	return new Promise(function(resolve, reject){
+
+		var options = {
+			url: xnat.getXnatUrl() + uri,
+			method: "DELETE",
+			jar: xnat.jar
+		}
+
+		request(options, function(err, res, body){
+			if(err){
+				reject(err);
+			}else{				
+				try{
+					if(res.statusCode === 200){
+						console.log("File deleted")
+						resolve(body);
+					}else{
+						reject(body);
+					}
+				}catch(e){
+					console.error("xnat.getScanFiles", e);
+					reject(e);
+				}
+				
+			}
+		});
+	});
 }
 
 xnat.triggerPipelines = function(projectid, subjectid, experimentid){
@@ -448,6 +574,10 @@ xnat.setScanQualityLabels = function(projectid, labelfilename){
 
 xnat.upload = function(){
 	require(path.join(__dirname, 'upload'))(xnat);
+}
+
+xnat.importConverted = function(){
+	require(path.join(__dirname, 'importConverted'))(xnat);
 }
 
 const getConfigFile = function () {
