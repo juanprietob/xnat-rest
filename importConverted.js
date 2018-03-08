@@ -243,7 +243,7 @@ module.exports = function(xnat){
 			if(subjectsession === undefined){
 				console.log("I did not find the series number, using series description only.");
 				subjectsession = _.find(subjectsessions, function(sess){
-					return sess.series_description === seriesdes && seriesnum == sess.ID;
+					return sess.series_description === seriesdes;
 				});
 				if(subjectsession === undefined){
 					return Promise.reject({

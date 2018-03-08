@@ -23,8 +23,10 @@
   "homepage": "https://github.com/juanprietob/xnat-rest#readme",
   "dependencies": {
     "bluebird": "^3.4.6",
+    "csvtojson": "^1.1.9",
     "dicomjs": "0.0.9",
     "find": "^0.2.7",
+    "json2csv": "^3.11.1",
     "prompt": "^1.0.0",
     "request": "^2.76.0",
     "underscore": "^1.8.3"

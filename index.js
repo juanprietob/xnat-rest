@@ -9,7 +9,11 @@ const find = require('find');
 const os = require('os');
 const prompt = require('prompt');
 
-var xnat = {};
+var xnat = {
+	agentOptions : {
+		rejectUnauthorized: false
+	}
+};
 
 xnat.useDCMExtension = true;
 
@@ -23,6 +27,10 @@ xnat.useDCMExtensionOff = function(){
 
 xnat.setUseDCMExtension = function(usedcm){
 	xnat.useDCMExtension = usedcm;
+}
+
+xnat.setAgentOptions = function(agentOptions){
+	xnat.agentOptions = agentOptions
 }
 
 xnat.jar = request.jar();
@@ -39,7 +47,8 @@ xnat.login = function(user){
 	return new Promise(function(resolve, reject){
 		var options = {
 			url: xnat.getXnatUrl() + "/data/JSESSION",
-			auth:user
+			auth:user,
+			agentOptions: xnat.agentOptions
 		}
 
 		request(options, function(err, res, body){
@@ -89,7 +98,8 @@ xnat.getProjects = function(){
 	return new Promise(function(resolve, reject){
 		var options = {
 			url: xnat.getXnatUrl() + "/data/archive/projects" + "?format=json",
-			jar: xnat.jar
+			jar: xnat.jar,
+			agentOptions: xnat.agentOptions
 		}
 
 		request(options, function(err, res, body){
@@ -124,7 +134,8 @@ xnat.getSubjects = function(projectid, subjectid){
 		var options = {
 			url: xnat.getXnatUrl() + "/data/archive/subjects?" + qs.stringify(params),
 			method: "GET",
-			jar: xnat.jar
+			jar: xnat.jar,
+			agentOptions: xnat.agentOptions
 		}
 
 		request(options, function(err, res, body){
@@ -155,7 +166,8 @@ xnat.getExperiments = function(projectid){
 		var options = {
 			url: xnat.getXnatUrl() + "/data/archive/experiments?" + qs.stringify(params),
 			method: "GET",
-			jar: xnat.jar
+			jar: xnat.jar,
+			agentOptions: xnat.agentOptions
 		}
 
 		request(options, function(err, res, body){
@@ -177,18 +189,102 @@ xnat.getSubject = function(projectid, subjectid){
 
 		var params = {
 			format: "json"
-		}
+		};		
 
 		var options = {
 			url: xnat.getXnatUrl() + "/data/archive/projects/" + projectid + "/subjects/" + subjectid + "?" + qs.stringify(params),
-			jar: xnat.jar
+			jar: xnat.jar,
+			agentOptions: xnat.agentOptions
 		}
-
+		
 		request(options, function(err, res, body){
 			if(err){				
 				reject(err);
 			}else{				
-				if(res.statusCode === 200){
+				if(res.statusCode === 200){										
+					resolve(JSON.parse(body));
+				}else{
+					reject(body);
+				}
+			}
+		});
+	})	
+}
+
+xnat.setSubject = function(projectid, subjectid, params){
+	return new Promise(function(resolve, reject){
+		if(_.isObject(params)){
+			var options = {
+				url: xnat.getXnatUrl() + "/data/archive/projects/" + projectid + "/subjects/" + subjectid + "?" + qs.stringify(params),
+				method: 'PUT',
+				jar: xnat.jar,
+				agentOptions: xnat.agentOptions
+			}
+			
+			request(options, function(err, res, body){
+				if(err){				
+					reject(err);
+				}else{				
+					if(res.statusCode === 200){										
+						resolve(body);
+					}else{
+						reject(body);
+					}
+				}
+			});
+		}else{
+			reject("The parameters must be an object to set the subject's properties");
+		}
+	})	
+}
+
+xnat.setExperiment = function(projectid, subjectid, experimentid, params){
+	return new Promise(function(resolve, reject){
+		if(_.isObject(params)){
+			var options = {
+				url: xnat.getXnatUrl() + "/data/archive/projects/" + projectid + "/subjects/" + subjectid + "/experiments/" + experimentid +"?" + qs.stringify(params),
+				method: 'PUT',
+				jar: xnat.jar,
+				agentOptions: xnat.agentOptions
+			}
+			
+			request(options, function(err, res, body){
+				if(err){				
+					reject(err);
+				}else{				
+					if(res.statusCode === 200){										
+						resolve(body);
+					}else{
+						reject(body);
+					}
+				}
+			});
+		}else{
+			reject("The parameters must be an object to set the subject's properties");
+		}
+	})	
+}
+
+xnat.getSubjectData = function(projectid, subjectid){
+	return new Promise(function(resolve, reject){
+
+		var params = {			
+			xsiType: "xnat:subjectData",
+			format: "json"
+		};		
+
+		var options = {
+			url: xnat.getXnatUrl() + "/data/projects/" + projectid + "/subjects/" + subjectid + "?" + qs.stringify(params),
+			method: 'GET',
+			jar: xnat.jar,
+			agentOptions: xnat.agentOptions
+		}
+		
+		request(options, function(err, res, body){
+			if(err){				
+				reject(err);
+			}else{				
+				if(res.statusCode === 200){										
 					resolve(JSON.parse(body));
 				}else{
 					reject(body);
@@ -207,7 +303,8 @@ xnat.getSubjectExperiments = function(projectid, subjectid){
 
 		var options = {
 			url: xnat.getXnatUrl() + "/data/archive/projects/" + projectid + "/subjects/" + subjectid + "/experiments?" + qs.stringify(params),
-			jar: xnat.jar
+			jar: xnat.jar,
+			agentOptions: xnat.agentOptions
 		}
 
 		request(options, function(err, res, body){
@@ -222,6 +319,10 @@ xnat.getSubjectExperiments = function(projectid, subjectid){
 			}
 		});
 	})	
+}
+
+xnat.getSubjectExperiment = function(projectid, subjectid, experimentid){
+	return xnat.getSubjectSession(projectid, subjectid, experimentid);
 }
 
 xnat.getSubjectSession = function(projectid, subjectid, sessionid){
@@ -240,7 +341,8 @@ xnat.getSubjectSession = function(projectid, subjectid, sessionid){
 
 		var options = {
 			url: xnat.getXnatUrl() + url,
-			jar: xnat.jar
+			jar: xnat.jar,
+			agentOptions: xnat.agentOptions
 		}
 
 		request(options, function(err, res, body){
@@ -262,7 +364,8 @@ xnat.createSubject = function(projectid, subjectid) {
 		var options = {
 			url: xnat.getXnatUrl() + "/data/archive/projects/" + projectid + "/subjects/" + subjectid,
 			method: "PUT",
-			jar: xnat.jar
+			jar: xnat.jar,
+			agentOptions: xnat.agentOptions
 		}		
 		request(options, function(err, res, body){
 			if(err){
@@ -294,7 +397,8 @@ xnat.uploadImage = function(projectid, subjectid, experimentid, filename){
 			url: xnat.getXnatUrl() + "/data/services/import?" + qs.stringify(params),
 			method: "POST",
 			jar: xnat.jar,
-			body: fs.readFileSync(filename)
+			body: fs.readFileSync(filename),
+			agentOptions: xnat.agentOptions
 		}		
 
 		request(options, function(err, res, body){
@@ -322,7 +426,8 @@ xnat.uploadConvertedImage = function(projectid, subjectid, experimentid, scanid,
 			url: xnat.getXnatUrl() + "/data/archive/projects/" + projectid + "/subjects/" + subjectid + "/experiments/" + experimentid + "/scans/" + scanid + "/files/" + path.basename(filename) + "?" + qs.stringify(params),
 			method: "PUT",
 			jar: xnat.jar,
-			body: fs.readFileSync(filename)
+			body: fs.readFileSync(filename),
+			agentOptions: xnat.agentOptions
 		}
 
 		request(options, function(err, res, body){
@@ -340,6 +445,91 @@ xnat.uploadConvertedImage = function(projectid, subjectid, experimentid, scanid,
 	})	
 }
 
+xnat.search = function(id){
+	return new Promise(function(resolve, reject){
+
+		var params = {
+			format: "json",
+			ID: id
+		}
+
+		var options = {
+			url: xnat.getXnatUrl() + "/data/search/elements/xnat:subjectData?" + qs.stringify(params),
+			method: "GET",
+			jar: xnat.jar,
+			agentOptions: xnat.agentOptions
+		}
+
+		request(options, function(err, res, body){
+			if(err){
+				reject(err);
+			}else{				
+				if(res.statusCode === 200){
+					resolve(body);
+				}else{
+					reject(body);
+				}
+			}
+		});
+	})	
+}
+
+xnat.deleteConvertedImage = function(projectid, subjectid, experimentid, scanid, filename){
+	return new Promise(function(resolve, reject){
+
+		var options = {
+			url: xnat.getXnatUrl() + "/data/experiments/" + experimentid + "/scans/" + scanid + "/resources",
+			method: "GET",
+			jar: xnat.jar,
+			agentOptions: xnat.agentOptions
+		}
+
+		request(options, function(err, res, body){
+			if(err){
+				reject(err);
+			}else{				
+				if(res.statusCode === 200){
+
+					var resultset = JSON.parse(body);
+					var resultsetcontent = _.find(resultset.ResultSet.Result, function(result){
+						return result.content == "RAW";
+					});
+
+					if(resultsetcontent && resultsetcontent.xnat_abstractresource_id){
+						var options = {
+							url: xnat.getXnatUrl() + "/data/experiments/" + experimentid + "/scans/" + scanid + "/resources/" + resultsetcontent.xnat_abstractresource_id + "/files/" + path.basename(filename),
+							method: "DELETE",
+							jar: xnat.jar,
+							agentOptions: xnat.agentOptions
+						}
+
+						request(options, function(err, res, body){
+							if(err){
+								reject(err);
+							}else{				
+								if(res.statusCode === 200){
+									console.log("File deleted");
+									resolve(body);
+								}else{
+									reject(body);
+								}
+							}
+						});
+					}else{
+						reject("No RAW content found in session", "/data/experiments/" + experimentid + "/scans/" + scanid + "/resources");
+					}
+
+					
+				}else{
+					reject(body);
+				}
+			}
+		});
+
+		
+	})	
+}
+
 xnat.getScanFiles = function(projectid, subjectid, experimentid, scanid){
 	return new Promise(function(resolve, reject){
 
@@ -350,7 +540,8 @@ xnat.getScanFiles = function(projectid, subjectid, experimentid, scanid){
 		var options = {
 			url: xnat.getXnatUrl() + "/data/archive/projects/" + projectid + "/subjects/" + subjectid + "/experiments/" + experimentid + "/scans/" + scanid + "/files?" + qs.stringify(params),
 			method: "GET",
-			jar: xnat.jar
+			jar: xnat.jar,
+			agentOptions: xnat.agentOptions
 		}
 
 		request(options, function(err, res, body){
@@ -380,7 +571,8 @@ xnat.deleteFile = function(uri){
 		var options = {
 			url: xnat.getXnatUrl() + uri,
 			method: "DELETE",
-			jar: xnat.jar
+			jar: xnat.jar,
+			agentOptions: xnat.agentOptions
 		}
 
 		request(options, function(err, res, body){
@@ -414,7 +606,8 @@ xnat.triggerPipelines = function(projectid, subjectid, experimentid){
 		var options = {
 			url: xnat.getXnatUrl() + "/data/archive/projects/" + projectid + "/subjects/" + subjectid + "/experiments/" + experimentid + "?" + qs.stringify(params),
 			method: "PUT",
-			jar: xnat.jar
+			jar: xnat.jar,
+			agentOptions: xnat.agentOptions
 		}
 
 		console.log(options);
@@ -445,7 +638,8 @@ xnat.logout = function(){
 			var options = {
 				url: xnat.getXnatUrl() + "/data/JSESSION",
 				method: "DELETE",
-				jar: xnat.jar
+				jar: xnat.jar,
+				agentOptions: xnat.agentOptions
 			}
 
 			request(options, function(err, res, body){
@@ -554,7 +748,8 @@ xnat.setScanQualityLabels = function(projectid, labelfilename){
 			url: xnat.getXnatUrl() + "/REST/projects/" + projectid + "/config/scan-quality/labels?" + qs.stringify(params),
 			method: "PUT",
 			jar: xnat.jar,
-			data: fs.readFileSync(labelfilename)
+			data: fs.readFileSync(labelfilename),
+			agentOptions: xnat.agentOptions
 		}
 
 		request(options, function(err, res, body){
@@ -578,6 +773,14 @@ xnat.upload = function(){
 
 xnat.importConverted = function(){
 	require(path.join(__dirname, 'importConverted'))(xnat);
+}
+
+xnat.deleteConverted = function(){
+	require(path.join(__dirname, 'deleteConverted'))(xnat);
+}
+
+xnat.changeSubjectLabel = function(){
+	require(path.join(__dirname, 'changeSubjectLabel'))(xnat);
 }
 
 const getConfigFile = function () {
@@ -649,6 +852,10 @@ xnat.setXnatUrlAndLogin = function(server, promptlogin){
 		return xnat.login(conf.user);
 	});
 	
+}
+
+xnat.start = function(){
+	return xnat.setXnatUrlAndLogin();
 }
 
 _.extend(this, xnat);

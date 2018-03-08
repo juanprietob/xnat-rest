@@ -54,7 +54,7 @@ lab.experiment("Test xnat REST", function(){
                     console.log(data_field)
                     return {
                         ID: data_field.ID, 
-                        image_session_ID: data_field.image_session_ID
+                        image_session_ID: data_field.image_session_ID,
                         series_description: data_field.series_description
                     }
                 }))
