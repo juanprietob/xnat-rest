@@ -275,7 +275,13 @@ module.exports = function(xnat){
 
 		})
 		.then(function(){
-			return xnat.uploadConvertedImage(projectid, this.pid, this.expid, this.subjectsessionid, convertedFile);
+			return xnat.createResources(projectid, this.pid, this.expid, this.subjectsessionid, "NRRD")
+			.catch(function(err){
+				console.error(err);
+			});
+		})
+		.then(function(){
+			return xnat.uploadResourceFile(projectid, this.pid, this.expid, this.subjectsessionid, "NRRD", convertedFile);
 		})
 		.catch(console.error);
 			

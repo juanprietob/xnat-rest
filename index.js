@@ -294,6 +294,34 @@ xnat.getSubjectData = function(projectid, subjectid){
 	})	
 }
 
+xnat.getSubjectFiles = function(projectid, subjectid){
+	return new Promise(function(resolve, reject){
+
+		var params = {
+			format: "json"
+		};		
+
+		var options = {
+			url: xnat.getXnatUrl() + "/data/projects/" + projectid + "/subjects/" + subjectid + "/files?" + qs.stringify(params),
+			method: 'GET',
+			jar: xnat.jar,
+			agentOptions: xnat.agentOptions
+		}
+		
+		request(options, function(err, res, body){
+			if(err){				
+				reject(err);
+			}else{				
+				if(res.statusCode === 200){										
+					resolve(JSON.parse(body));
+				}else{
+					reject(body);
+				}
+			}
+		});
+	})
+}
+
 xnat.getSubjectExperiments = function(projectid, subjectid){
 	return new Promise(function(resolve, reject){
 
@@ -445,6 +473,204 @@ xnat.uploadConvertedImage = function(projectid, subjectid, experimentid, scanid,
 	})	
 }
 
+xnat.copyResource = function(projectid, source_subjectid, source_experimentid, source_scanid, source_resourceid, source_filename, dest_subjectid, dest_experimentid, dest_scanid, dest_resourceid, dest_filename){
+	return new Promise(function(resolve, reject){
+
+		var params = {
+			overwrite: "append"
+		}
+		
+		var source_options = {
+			url: xnat.getXnatUrl() + "/data/archive/projects/" + projectid + "/subjects/" + source_subjectid + "/experiments/" + source_experimentid + "/scans/" + source_scanid + "/resources/" + source_resourceid + "/files/" + source_filename,
+			method: "GET",
+			jar: xnat.jar,
+			agentOptions: xnat.agentOptions
+		}
+
+		var dest_options = {
+			url: xnat.getXnatUrl() + "/data/archive/projects/" + projectid + "/subjects/" + dest_subjectid + "/experiments/" + dest_experimentid + "/scans/" + dest_scanid + "/resources/" + dest_resourceid + "/files/" + dest_filename + "?" + qs.stringify(params),
+			method: "PUT",
+			jar: xnat.jar,
+			agentOptions: xnat.agentOptions
+		}
+
+		var source_req = request(source_options)
+		.pipe(request(dest_options, function(err, res, body){
+			if(err){
+				reject(err);
+			}else{				
+				if(res.statusCode === 200){
+					console.log("File copied");
+					resolve(body);
+				}else{
+					reject(body);
+				}
+			}
+		}));
+
+		source_req.on('response', function (res) {
+			if(res.statusCode === 400){
+				reject("File not found:" + source_options.url);
+			}
+		});
+	})	
+}
+
+xnat.moveResource = function(projectid, source_subjectid, source_experimentid, source_scanid, source_resourceid, source_filename, dest_subjectid, dest_experimentid, dest_scanid, dest_resourceid, dest_filename){
+	return xnat.copyResource(projectid, source_subjectid, source_experimentid, source_scanid, source_resourceid, source_filename, dest_subjectid, dest_experimentid, dest_scanid, dest_resourceid, dest_filename)
+	.then(function(){
+		return xnat.deleteResourceFile(projectid, source_subjectid, source_experimentid, source_scanid, source_resourceid, source_filename);
+	})
+}
+
+xnat.deleteResourceFile = function(projectid, subjectid, experimentid, scanid, resourceid, filename){
+	return new Promise(function(resolve, reject){
+		var options = {
+			url: xnat.getXnatUrl() + "/data/archive/projects/" + projectid + "/subjects/" + subjectid + "/experiments/" + experimentid + "/scans/" + scanid + "/resources/" + resourceid + "/files/" + filename,
+			method: "DELETE",
+			jar: xnat.jar,
+			agentOptions: xnat.agentOptions
+		}
+
+		request(options, function(err, res, body){
+			if(err){
+				reject(err);
+			}else{				
+				if(res.statusCode === 200){
+					console.log("File deleted");
+					resolve(body);
+				}else{
+					reject(body);
+				}
+			}
+		});
+	});
+}
+
+xnat.createResources = function(projectid, subjectid, experimentid, scanid, resourceName){
+	return new Promise(function(resolve, reject){
+
+		var options = {
+			url: xnat.getXnatUrl() + "/data/archive/projects/" + projectid + "/subjects/" + subjectid + "/experiments/" + experimentid + "/scans/" + scanid + "/resources/" + resourceName,
+			method: "PUT",
+			jar: xnat.jar,
+			agentOptions: xnat.agentOptions
+		}
+
+		request(options, function(err, res, body){
+			if(err){
+				reject(err);
+			}else{				
+				if(res.statusCode === 200){
+					resolve(body);
+				}else{
+					reject(body);
+				}
+			}
+		});
+	})	
+	
+}
+
+xnat.getResourceFiles = function(projectid, subjectid, experimentid, scanid, resource){
+	return new Promise(function(resolve, reject){
+
+		var params = {
+			format: "json"
+		}
+
+		var options = {
+			url: xnat.getXnatUrl() + "/data/archive/projects/" + projectid + "/subjects/" + subjectid + "/experiments/" + experimentid + "/scans/" + scanid + "/resources/" + resource + "/files?" + qs.stringify(params),
+			method: "GET",
+			jar: xnat.jar,
+			agentOptions: xnat.agentOptions,
+			headers: {
+				'content-type': 'application/json'
+			}
+		}
+
+		request(options, function(err, res, body){
+			if(err){
+				reject(err);
+			}else{				
+				if(res.statusCode === 200){
+					if(_.isObject(body)){
+						resolve(body);
+					}else{
+						resolve(JSON.parse(body));
+					}
+				}else{
+					reject(body);
+				}
+			}
+		});
+	})	
+	
+}
+
+xnat.getResources = function(projectid, subjectid, experimentid, scanid){
+	return new Promise(function(resolve, reject){
+
+		var params = {
+			format: "json"
+		}
+
+		var options = {
+			url: xnat.getXnatUrl() + "/data/archive/projects/" + projectid + "/subjects/" + subjectid + "/experiments/" + experimentid + "/scans/" + scanid + "/resources?" + qs.stringify(params),
+			method: "GET",
+			jar: xnat.jar,
+			agentOptions: xnat.agentOptions
+		}
+
+		request(options, function(err, res, body){
+			if(err){
+				reject(err);
+			}else{				
+				if(res.statusCode === 200){
+					if(_.isObject(body)){
+						resolve(body);
+					}else{
+						resolve(JSON.parse(body));
+					}
+				}else{
+					reject(body);
+				}
+			}
+		});
+	})	
+	
+}
+
+xnat.uploadResourceFile = function(projectid, subjectid, experimentid, scanid, resourceid, filename){
+	return new Promise(function(resolve, reject){
+
+		var params = {
+			inbody: true
+		}
+
+		var options = {
+			url: xnat.getXnatUrl() + "/data/archive/projects/" + projectid + "/subjects/" + subjectid + "/experiments/" + experimentid + "/scans/" + scanid + "/resources/" + resourceid + "/files/" + path.basename(filename) + "?" + qs.stringify(params),
+			method: "PUT",
+			jar: xnat.jar,
+			body: fs.readFileSync(filename),
+			agentOptions: xnat.agentOptions
+		}
+
+		request(options, function(err, res, body){
+			if(err){
+				reject(err);
+			}else{				
+				if(res.statusCode === 200){
+					console.log("File imported");
+					resolve(body);
+				}else{
+					reject(body);
+				}
+			}
+		});
+	});	
+}
+
 xnat.search = function(id){
 	return new Promise(function(resolve, reject){
 
@@ -539,6 +765,41 @@ xnat.getScanFiles = function(projectid, subjectid, experimentid, scanid){
 
 		var options = {
 			url: xnat.getXnatUrl() + "/data/archive/projects/" + projectid + "/subjects/" + subjectid + "/experiments/" + experimentid + "/scans/" + scanid + "/files?" + qs.stringify(params),
+			method: "GET",
+			jar: xnat.jar,
+			agentOptions: xnat.agentOptions
+		}
+
+		request(options, function(err, res, body){
+			if(err){
+				reject(err);
+			}else{				
+				try{
+					if(res.statusCode === 200){
+						var images = JSON.parse(body);
+						resolve(images.ResultSet.Result);
+					}else{
+						reject(body);
+					}
+				}catch(e){
+					console.error("xnat.getScanFiles", e);
+					reject(e);
+				}
+				
+			}
+		});
+	});	
+}
+
+xnat.getScans = function(projectid, subjectid, experimentid){
+	return new Promise(function(resolve, reject){
+
+		var params = {
+			format: "json"
+		}
+
+		var options = {
+			url: xnat.getXnatUrl() + "/data/archive/projects/" + projectid + "/subjects/" + subjectid + "/experiments/" + experimentid + "/scans/?" + qs.stringify(params),
 			method: "GET",
 			jar: xnat.jar,
 			agentOptions: xnat.agentOptions
