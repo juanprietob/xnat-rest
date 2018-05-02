@@ -17,6 +17,7 @@ const help = function(){
 	console.error("-p <project id>, project id in XNAT to upload the files.");
 	console.error("--out_files <filename to write found files>");
 	console.error("--in_files <filename to load input files instead of searching>");
+	console.error("--move , move the found files.");
 	console.error("--prompt , If set, forces prompt for login information again. It will use the previous server URL saved in the configuration file");
 }
 
@@ -30,7 +31,7 @@ var projectid = argv["p"];
 var promptlogin = argv["prompt"];
 var outfiles = argv["out_files"];
 var infiles = argv["in_files"];
-
+var move = argv["move"];
 
 xnat.start()
 .then(function(res){
@@ -45,46 +46,46 @@ xnat.start()
 					return xnat.getScans(projectid, subjectid, exp.ID)
 					.then(function(subjectExperiments){
 						return Promise.map(subjectExperiments, function(scans){
-
-							return xnat.getResources(projectid, subjectid, exp.ID, scans.ID)
-							.then(function(resources){
-								if(resources && resources.ResultSet && resources.ResultSet.Result){
-									return _.filter(_.pluck(resources.ResultSet.Result, "label"), function(lab){
-										return lab != "NRRD";
-									});
-								}else{
-									return [];
-								}
-							})
-							.then(function(resources){
-								return Promise.map(resources, function(resource){
-									return xnat.getResourceFiles(projectid, subjectid, exp.ID, scans.ID, resource);
-								})
-								.then(function(resourcefiles){
-									return _.compact(_.flatten(_.pluck(_.compact(_.pluck(resourcefiles, "ResultSet")), "Result")));
-								});
-							})
+							return xnat.getScanFiles(projectid, subjectid, exp.ID, scans.ID)
 							.then(function(scanfiles){
-								return _.map(scanfiles, function(sfile){
-									if(sfile.Name.indexOf(".nrrd") != -1 || sfile.Name.indexOf(".nii.gz") != -1 || sfile.Name.indexOf(".nii") != -1){
-										return {
-											subjectid: subjectid,
-											experimentid: exp.ID,
-											scanid: scans.ID, 
-											resourceid: sfile.cat_ID, 
-											name: sfile.Name,
-											uri: sfile.URI
-										}
+								var scanfilesfound = _.map(scanfiles, function(sfile){
+									return {
+										subjectid: subjectid,
+										experimentid: exp.ID,
+										scanid: scans.ID, 
+										resourceid: sfile.cat_ID, 
+										name: sfile.Name,
+										uri: sfile.URI,
+										collection: sfile.collection
 									}
 								});
+								return _.filter(scanfilesfound, function(sfile){
+									return (sfile.collection.indexOf("NRRD") == -1 && (sfile.name.indexOf(".nrrd") != -1 || sfile.name.indexOf(".nii.gz") != -1 || sfile.name.indexOf(".nii") != -1 || sfile.name.indexOf(".png") != -1 || sfile.name.indexOf(".txt") != -1 || sfile.name.indexOf(".bvals") != -1 || sfile.name.indexOf(".bvecs") != -1))
+								});
+							})
+							.catch(function(e){
+								console.error("getScanFiles", projectid, subjectid, exp.ID, scans.ID);
+								console.error(e);
+								return null;
 							});
+						}, {
+							concurrency: 1
 						});
-					});
+					})
+					.catch(function(e){
+						console.error("getScans", projectid, subjectid, exp.ID);
+						console.error(e);
+						return null;
+					});;
+				}, {
+					concurrency: 1
 				})
 			})
 			.catch(function(e){
+				console.error("getSubjectExperiments", projectid, subjectid);
 				console.error(e);
-			})
+				return null;
+			});
 		}, {
 			concurrency: 1
 		})
@@ -92,54 +93,59 @@ xnat.start()
 			allexperiments = _.compact(_.flatten(allexperiments));
 			if(outfiles){
 				console.log("Writting file", outfiles);
-				fs.writeFileSync(outfiles, JSON.stringify(allexperiments), null, 2);
+				fs.writeFileSync(outfiles, JSON.stringify(allexperiments));
 			}
 			return allexperiments;
+		})
+		.catch(function(e){
+			console.error("map ids");
+			console.error(e);
+			return null;
 		});
 	}else{
 		return JSON.parse(fs.readFileSync(infiles));
 	}
 })
 .then(function(allconvertedfiles){
-	uniqresource = _.uniq(_.map(allconvertedfiles, function(convfile){
-		return {
-			subjectid: convfile.subjectid,
-		    experimentid: convfile.experimentid,
-		    scanid: convfile.scanid
-		}
-	}), function(el, ind, l){
-		return el.subjectid + el.experimentid + el.scanid;
-	});
-
-	return Promise.map(uniqresource, function(ur){
-		return xnat.createResources(projectid, ur.subjectid, ur.experimentid, ur.scanid, "NRRD")
-		.then(function(res){
-			console.log("Resource created!", projectid, ur.subjectid, ur.experimentid, ur.scanid, "NRRD");
-		})
-		.catch(function(err){
-			console.error(err);
+	if(move){
+		var uniqresource = _.uniq(_.map(allconvertedfiles, function(convfile){
+			return {
+				subjectid: convfile.subjectid,
+			    experimentid: convfile.experimentid,
+			    scanid: convfile.scanid
+			}
+		}), function(el, ind, l){
+			return el.subjectid + el.experimentid + el.scanid;
 		});
-	}, {
-			concurrency: 1
-	})
-	.then(function(){
-		return Promise.map(allconvertedfiles, function(convfile){
-			return xnat.moveResource(projectid, convfile.subjectid, convfile.experimentid, convfile.scanid, convfile.resourceid, convfile.name, convfile.subjectid, convfile.experimentid, convfile.scanid, "NRRD", convfile.name)
+
+		return Promise.map(uniqresource, function(ur){
+			return xnat.createResources(projectid, ur.subjectid, ur.experimentid, ur.scanid, "NRRD")
 			.then(function(res){
-				console.log("File Moved!", projectid, convfile.subjectid, convfile.experimentid, convfile.scanid, convfile.resourceid, convfile.name);
-				return res;
+				console.log("Resource created!", projectid, ur.subjectid, ur.experimentid, ur.scanid, "NRRD");
 			})
 			.catch(function(err){
 				console.error(err);
-				return err;
 			});
 		}, {
-			concurrency: 1
+				concurrency: 1
 		})
-	})
-})
-.then(function(res){
-	console.log(res)
+		.then(function(){
+			return Promise.map(allconvertedfiles, function(convfile){
+				return xnat.moveResource(projectid, convfile.subjectid, convfile.experimentid, convfile.scanid, convfile.resourceid, convfile.name, convfile.subjectid, convfile.experimentid, convfile.scanid, "NRRD", convfile.name)
+				.then(function(res){
+					console.log("File Moved!", projectid, convfile.subjectid, convfile.experimentid, convfile.scanid, convfile.resourceid, convfile.name);
+					return res;
+				})
+				.catch(function(err){
+					console.error(err);
+					return err;
+				});
+			}, {
+				concurrency: 1
+			});
+		});
+	}
+	
 })
 .then(function(){
 	return xnat.logout();
