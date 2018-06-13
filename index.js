@@ -1027,6 +1027,80 @@ xnat.setScanQualityLabels = function(projectid, labelfilename){
 	});
 }
 
+xnat.getWorkflow = function(workflowid){
+	return new Promise(function(resolve, reject){
+		var params = {
+			format: "json"
+		}
+
+		var options = {
+			url: xnat.getXnatUrl() + "/data/workflows/" + workflowid + "?" + qs.stringify(params),
+			method: "GET",
+			jar: xnat.jar,
+			agentOptions: xnat.agentOptions
+		}
+
+		request(options, function(err, res, body){
+			if(err){
+				reject(err);
+			}else{				
+				try{
+					if(res.statusCode === 200){
+						resolve(JSON.parse(body));
+					}else{
+						reject(body);
+					}
+				}catch(e){
+					console.error("xnat.getWorkflow", e);
+					reject(e);
+				}
+				
+			}
+		});
+	});
+}
+
+xnat.changeWorkflowStatus = function(workflowid, status){
+	return new Promise(function(resolve, reject){
+		var params = {
+			"wrk:workflowData/status": status, 
+			format: "json"
+		}
+
+		var options = {
+			url: xnat.getXnatUrl() + "/data/workflows/" + workflowid + "?" + qs.stringify(params),
+			method: "PUT",
+			jar: xnat.jar,
+			agentOptions: xnat.agentOptions
+		}
+
+		request(options, function(err, res, body){
+			if(err){
+				reject(err);
+			}else{				
+				try{
+					if(res.statusCode === 200){
+						if(body){
+							resolve(JSON.parse(body));
+						}else{
+							resolve({
+								statusCode: 200
+							});
+						}
+						
+					}else{
+						reject(body);
+					}
+				}catch(e){
+					console.error("xnat.getWorkflow", e);
+					reject(e);
+				}
+				
+			}
+		});
+	});
+}
+
 
 xnat.upload = function(){
 	require(path.join(__dirname, 'upload'))(xnat);

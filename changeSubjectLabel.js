@@ -17,7 +17,7 @@ module.exports = function(xnat){
 		console.error("-s <subject id or current subject label>");
 		console.error("-e <experiment id or current experiment label (you need to set the -s flag as well)>");
 		console.error("-l <label to modify the user>");
-		console.error("--csv <csv file with columns 'subject_ID,label' or 'subject_ID,experiment_ID,label'>")
+		console.error("--csv <csv file with columns 'subject_ID,label' to modify the subject_label to label or 'subject_ID,experiment_ID,label' to modify the experiment_label to label>")
 		console.error("--prompt , If set, forces prompt for login information again. It will use the previous server URL saved in the configuration file");
 		console.error("--server <server url>, XNAT server url");
 	}
@@ -120,21 +120,32 @@ module.exports = function(xnat){
 			return readCSV(csvfilename)
 			.then(function(data){
 				return Promise.map(data, function(d){
+
 					if(d.label && d.subject_ID && d.experiment_ID){
-						var params = {
-							label: d.label
-						}
-						console.log("Renaming experiment:", d.experiment_ID, "to", d.label)
-						return xnat.setExperiment(projectid, d.subject_ID, d.experiment_ID, params)
-						.then(function(res){
-							console.log(res);
-						})
-						.catch(function(err){
-							console.error(err);
+						return xnat.getSubjectExperiment(projectid, d.subject_ID, d.experiment_ID)
+						.then(function(res_exp){
+							if(res_exp.items && res_exp.items.length > 0){
+								var current_experiment = res_exp.items[0];
+								if(current_experiment && current_experiment.data_fields && current_experiment.data_fields.label != d.label.trim()){
+									var params = {
+										label: d.label.trim()
+									}
+									console.log("Renaming experiment:", d.experiment_ID, "to", d.label.trim())
+									return xnat.setExperiment(projectid, d.subject_ID, d.experiment_ID, params)
+									.then(function(res){
+										console.log(res);
+									})
+									.catch(function(err){
+										console.error(err);
+									});
+								}
+							}
+							return Promise.resolve();
 						});
+						
 					}else if(d.label && d.subject_ID){
 						var params = {
-							label: d.label
+							label: d.label.trim()
 						}
 						console.log("Renaming subject:", d.subject_ID, "to", d.label)
 						return xnat.setSubject(projectid, d.subject_ID, params)
