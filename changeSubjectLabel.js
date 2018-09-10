@@ -130,7 +130,8 @@ module.exports = function(xnat){
 									var params = {
 										label: d.label.trim()
 									}
-									console.log("Renaming experiment:", d.experiment_ID, "to", d.label.trim())
+									console.log("Renaming experiment:", d.experiment_ID, "to", d.label.trim());
+									
 									return xnat.setExperiment(projectid, d.subject_ID, d.experiment_ID, params)
 									.then(function(res){
 										console.log(res);
@@ -147,7 +148,8 @@ module.exports = function(xnat){
 						var params = {
 							label: d.label.trim()
 						}
-						console.log("Renaming subject:", d.subject_ID, "to", d.label)
+						console.log("Renaming subject:", d.subject_ID, "to", d.label);
+						
 						return xnat.setSubject(projectid, d.subject_ID, params)
 						.then(function(res){
 							console.log(res);
@@ -156,7 +158,8 @@ module.exports = function(xnat){
 							console.error(err);
 						});
 					}else{
-						return Promise.reject("No subject_ID and/or label in csv data. Check the column names.");
+						console.error("No subject_ID, experiment_ID or label:", d);
+						return Promise.resolve(false);
 					}
 					
 				}, {
