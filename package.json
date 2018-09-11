@@ -1,6 +1,6 @@
 {
   "name": "xnat-rest",
-  "version": "2.0.2",
+  "version": "2.0.1",
   "description": "Implement the operations to communicate with xnat via REST api",
   "main": "index.js",
   "scripts": {
