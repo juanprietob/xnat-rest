@@ -159,6 +159,89 @@ To upload files using this library create a file (index.js) and add:
 
 ## Documentation:
 
+### Usage simplified:
+
+The function 'xnat.start()' will prompt for the xnat url, e.x., 'http://yourserver.com/xnat', then for username and password 
+You can then query and do operations on your xnat instance after that.
+
+```javascript
+	const Promise = require('bluebird');
+	const _ = require('underscore');
+	const xnat = require('xnat-rest');
+
+	var projectid = "YourProjectId";
+	var subjectid = "SomeSubjectId";
+	var sessionid = "SomeSessionId";
+
+	xnat.start()
+	.then(function(){
+		return xnat.getSubjectExperiment(projectid, subjectid, sessionid);
+	})
+	.then(function(result){
+		console.log(result);
+	});
+```
+
+### Get all images from a given session
+
+```javascript
+	const xnat = require('xnat-rest');
+	const _ =  require('underscore');
+	const Promise = require('bluebird');
+
+	var projectid = "YourProjectId";
+	var subjectid = "SomeSubjectId";
+	var sessionid = "SomeSessionId";
+
+	xnat.getSubjectExperiment(projectid, subjectid, sessionid)
+	.then(function(res){
+		//This will give you the id of the acquired images in that session
+		var scan = [];
+		_.each(res.items, function(item){
+			_.each(item.children, function(children){
+				_.each(children.items, function(items){
+					scan.push(items.data_fields);
+				});
+			});
+		});
+		return scan;
+	})
+	.then(function(scan_items_data_fields){
+		//This gives you ALL the available images for a given session
+		// /data/archive/projects/{ID}/subjects/{ID | label}/experiments/{ID | label}/scans/{ID}/files
+
+        return Promise.map(scan_items_data_fields, function(data_fields){
+            return xnat.getScanFiles(projectid, subjectid, sessionid, data_fields.ID);
+        })
+        .then(function(res){
+             //to have a flat array with all the available files
+             return _.flatten(res);
+        });
+	})
+	.then(function(scan_files){
+		return Promise.map(scan_files, function(files){
+			return xnat.getFileStream(files.URI)
+			.then(function(fstream){
+	             // Do something with stream, pipe, write etc..
+	        });
+	});
+```
+
+### Upload a dicom directory to xnat
+
+Create a script with the following code
+
+```javascript
+	const xnat = require('xnat-rest');
+	xnat.upload();
+```
+
+Call your script 
+
+```bash
+	node yourscript.js -d /path/to/dicom/directory -p ProjectIdInXNAT
+```
+
 ### User login to xnat instance:
 
 ```javascript

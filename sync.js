@@ -131,7 +131,7 @@ module.exports = function(xnat){
 		var sync_dicom_resource_promise = Promise.resolve();
 
 		if(sync_dicom_resource){
-			console.log("Syncing dicom images now...");
+			console.log("Syncing dicom images ...");
 			sync_dicom_resource_promise = Promise.map(scan_items_data_fields, function(data_fields){
 				return xnat.getScanFiles(projectid, subjectid, sessionid, data_fields.ID)
 				.then(function(files){
@@ -178,7 +178,7 @@ module.exports = function(xnat){
 		.then(function(){
 			var sync_qc_promise = Promise.resolve();
 			if(sync_qc){
-				console.log("Syncing quality control now...");
+				console.log("Syncing quality control now ...");
 				sync_qc_promise = Promise.map(scan_items_data_fields, function(data_fields){
 					return xnat.getScanData(projectid, subjectid, sessionid, data_fields.ID)
 					.then(function(scan_data){
@@ -206,7 +206,7 @@ module.exports = function(xnat){
 		})
 		.then(function(){
 			return Promise.map(sync_resources, function(resource){
-				console.log("Syncing resource", resource);
+				console.log("Syncing resource", resource, "...");
 				return Promise.map(scan_items_data_fields, function(data_fields){
 					return xnat.getScanFiles(projectid, subjectid, sessionid, data_fields.ID)
 					.then(function(files){
